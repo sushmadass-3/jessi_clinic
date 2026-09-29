@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b7fab">
+
+<title>Jessi's Clinic — Patient Registration</title>
+
+<link rel="stylesheet" href="css/app.css">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+
+<!-- Firebase + Clinic App -->
+<script src="js/firebase-config.js?v=20260929-firebase-fix"></script>
+<script src="js/clinic-data.js?v=20260929-firebase-fix"></script>
+<script src="js/patient-app.js?v=20260929-firebase-fix"></script>
+
+</head>
+
+<body>
+
+<div id="patientAppRoot"></div>
+
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  if (typeof PatientApp !== 'undefined') {
+    PatientApp.init(document.getElementById('patientAppRoot'));
+  } else {
+    console.error('PatientApp is not available.');
+  }
+});
+</script>
+
+</body>
+</html>

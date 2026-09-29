@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b7fab">
+<title>Jessi's Clinic — Staff & Doctor</title>
+
+<link rel="stylesheet" href="css/app.css">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+<script src="js/firebase-config.js?v=20260929-mobile-login"></script>
+<script src="js/qr-generator.js"></script>
+<script src="js/clinic-data.js?v=20260929-mobile-login"></script>
+<script src="js/staff-app.js?v=20260929-mobile-login"></script>
+</head>
+
+<body>
+<div id="staffAppRoot"></div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  StaffApp.init(document.getElementById('staffAppRoot'));
+});
+</script>
+
+</body>
+</html>

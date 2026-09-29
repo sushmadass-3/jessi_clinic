@@ -1,0 +1,42 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-south1",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "staff.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      },
+      {
+        "source": "js/firebase-config.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      },
+      {
+        "source": "js/clinic-data.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      },
+      {
+        "source": "js/staff-app.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      }
+    ]
+  }
+}

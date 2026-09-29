@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    match /dailyQueues/{queueDate} {
+      allow read: if true;
+      allow create: if request.resource.data.lastTokenNumber == 1
+                    && request.resource.data.totalRegistered == 1;
+      allow update: if signedIn()
+                    || (request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['lastTokenNumber','totalRegistered','updatedAt'])
+                        && request.resource.data.lastTokenNumber == resource.data.lastTokenNumber + 1
+                        && request.resource.data.totalRegistered == resource.data.totalRegistered + 1);
+      allow delete: if signedIn();
+    }
+
+    match /appointmentSlots/{slotId} {
+      allow read: if true;
+      allow create: if request.resource.data.count == 1
+                    && request.resource.data.capacity == 13;
+      allow update: if signedIn()
+                    || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count','updatedAt'])
+                        && request.resource.data.count >= 0
+                        && request.resource.data.count <= 13
+                        && request.resource.data.count == resource.data.count + 1);
+      allow delete: if signedIn();
+    }
+
+    match /queueRecords/{recordId} {
+      allow read: if true;
+      allow create: if (!signedIn()
+                        && request.resource.data.registrationSource == 'QR'
+                        && request.resource.data.status == 'WAITING'
+                        && request.resource.data.patientName is string
+                        && request.resource.data.patientName.size() >= 2
+                        && request.resource.data.mobileNumber is string
+                        && request.resource.data.mobileNumber.size() == 10
+                        && request.resource.data.timeSlot is string)
+                    || (signedIn()
+                        && request.resource.data.registrationSource in ['QR','MANUAL']
+                        && request.resource.data.status == 'WAITING'
+                        && request.resource.data.timeSlot is string);
+      allow update, delete: if signedIn();
+    }
+
+    match /patients/{mobileNumber} {
+      allow read, create, update: if signedIn();
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+  }
+}
