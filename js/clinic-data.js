@@ -17,6 +17,9 @@
 
   const SLOT_CAPACITY = 13;
 
+  const isActiveRegistration=p=>
+    ['WAITING','IN_CONSULTATION'].includes(p.status);
+
   const TIME_SLOTS = [
     '10:00 AM - 11:00 AM',
     '11:00 AM - 12:00 PM',
@@ -70,7 +73,7 @@
 
     return (state.queue||[]).filter(p =>
       p.timeSlot===slot &&
-      !['CANCELLED','SKIPPED'].includes(p.status)
+      isActiveRegistration(p)
     ).length;
   }
 
@@ -817,13 +820,18 @@
 
     if(fbReady()){
 
+      let capacityDate=today();
+      let capacitySlot='';
+      let capacityDelta=0;
+
       const ref=
         db()
           .ref(`queueRecords/${id}`);
 
       if(
         status==='SKIPPED' ||
-        status==='WAITING'
+        status==='WAITING' ||
+        status==='COMPLETED'
       ){
 
         const patientSnap=
@@ -842,17 +850,26 @@
         const queueDate=
           patient.queueDate||today();
 
+        capacityDate=queueDate;
+        capacitySlot=patient.timeSlot||'';
+
         await reconcileSlotCounts(queueDate);
 
         const wasCounted=
-          !['CANCELLED','SKIPPED'].includes(patient.status);
+          isActiveRegistration(patient);
 
         const willCount=
-          !['CANCELLED','SKIPPED'].includes(status);
+          isActiveRegistration({
+            ...patient,
+            status
+          });
+
+        capacityDelta=
+          Number(willCount)-Number(wasCounted);
 
         if(
           patient.timeSlot &&
-          wasCounted!==willCount
+          capacityDelta!==0
         ){
 
           const allocatorRef=
@@ -880,7 +897,7 @@
                   );
 
                 if(
-                  willCount &&
+                  capacityDelta>0 &&
                   count>=SLOT_CAPACITY
                 ){
 
@@ -889,9 +906,7 @@
                 }
 
                 current.slotCounts[key]=
-                  willCount
-                    ? count+1
-                    : Math.max(0,count-1);
+                  Math.max(0,count+capacityDelta);
 
                 current.updatedAt=
                   serverTimestamp();
@@ -921,6 +936,7 @@
             .once('value');
 
         const updates={};
+        const completedSlotCounts={};
 
         const value=
           snap.val()||{};
@@ -933,6 +949,13 @@
                 rid!==id &&
                 p.status==='IN_CONSULTATION'
               ){
+
+                if(p.timeSlot && isActiveRegistration(p)){
+                  const key=slotKey(p.timeSlot);
+
+                  completedSlotCounts[key]=
+                    (completedSlotCounts[key]||0)+1;
+                }
 
                 updates[
                   `queueRecords/${rid}/status`
@@ -964,6 +987,36 @@
         await db()
           .ref()
           .update(updates);
+
+        if(Object.keys(completedSlotCounts).length){
+
+          await db()
+            .ref(`dailyQueues/${today()}`)
+            .transaction(
+              current=>{
+
+                if(!current)
+                  return current;
+
+                current.slotCounts=
+                  current.slotCounts||{};
+
+                Object.entries(completedSlotCounts)
+                  .forEach(([key,count])=>{
+
+                    current.slotCounts[key]=
+                      Math.max(
+                        0,
+                        Number(current.slotCounts[key]||0)-count
+                      );
+                  });
+
+                current.updatedAt=serverTimestamp();
+
+                return current;
+              }
+            );
+        }
 
       }else{
 
@@ -1001,7 +1054,42 @@
           updates.slotCapacityReleased=true;
         }
 
-        await ref.update(updates);
+        try{
+
+          await ref.update(updates);
+
+        }catch(err){
+
+          if(capacityDelta!==0 && capacitySlot){
+
+            await db()
+              .ref(`dailyQueues/${capacityDate}`)
+              .transaction(
+                current=>{
+
+                  if(!current)
+                    return current;
+
+                  current.slotCounts=
+                    current.slotCounts||{};
+
+                  const key=slotKey(capacitySlot);
+
+                  current.slotCounts[key]=
+                    Math.max(
+                      0,
+                      Number(current.slotCounts[key]||0)-capacityDelta
+                    );
+
+                  current.updatedAt=serverTimestamp();
+
+                  return current;
+                }
+              );
+          }
+
+          throw err;
+        }
       }
 
       return;
@@ -1094,7 +1182,15 @@
 
       };
 
-      if(p && p.timeSlot){
+      await db()
+        .ref(`queueRecords/${id}`)
+        .update(updates);
+
+      if(
+        p &&
+        p.timeSlot &&
+        isActiveRegistration(p)
+      ){
 
         const allocatorRef=
           db()
@@ -1127,10 +1223,6 @@
           }
         );
       }
-
-      await db()
-        .ref(`queueRecords/${id}`)
-        .update(updates);
 
       return;
     }
@@ -1207,6 +1299,14 @@
         db()
           .ref(`dailyQueues/${queueDate}`);
 
+      const newKey=
+        slotKey(newSlot);
+
+      const oldKey=
+        slotKey(oldSlot);
+
+      let slotFull=false;
+
       const tx=
         await allocatorRef.transaction(
           current=>{
@@ -1217,12 +1317,6 @@
             current.slotCounts=
               current.slotCounts||{};
 
-            const newKey=
-              slotKey(newSlot);
-
-            const oldKey=
-              slotKey(oldSlot);
-
             const newCount=
               Number(
                 current.slotCounts[newKey]||0
@@ -1230,22 +1324,12 @@
 
             if(newCount>=SLOT_CAPACITY){
 
+              slotFull=true;
               return;
             }
 
             current.slotCounts[newKey]=
               newCount+1;
-
-            if(oldSlot){
-
-              current.slotCounts[oldKey]=
-                Math.max(
-                  0,
-                  Number(
-                    current.slotCounts[oldKey]||0
-                  )-1
-                );
-            }
 
             current.updatedAt=
               serverTimestamp();
@@ -1257,34 +1341,88 @@
       if(!tx.committed){
 
         throw new Error(
-          `${newSlot} is full. Please select another time slot.`
+          slotFull
+            ? 'This time slot is full.'
+            : 'Unable to reserve the time slot. Please refresh and try again.'
         );
       }
 
-      await ref.update({
+      try{
 
-        status:'WAITING',
+        await ref.update({
 
-        timeSlot:newSlot,
+          status:'WAITING',
 
-        rescheduledFrom:
-          oldSlot,
+          timeSlot:newSlot,
 
-        rescheduledTo:
-          newSlot,
+          rescheduledFrom:
+            oldSlot,
 
-        rescheduleCount:
-          Number(
-            patient.rescheduleCount||0
-          )+1,
+          rescheduledTo:
+            newSlot,
 
-        rescheduledAt:
-          serverTimestamp(),
+          rescheduleCount:
+            Number(
+              patient.rescheduleCount||0
+            )+1,
 
-        updatedAt:
-          serverTimestamp()
+          rescheduledAt:
+            serverTimestamp(),
 
-      });
+          updatedAt:
+            serverTimestamp()
+
+        });
+
+      }catch(err){
+
+        await allocatorRef.transaction(
+          current=>{
+
+            if(!current)
+              return current;
+
+            current.slotCounts=
+              current.slotCounts||{};
+
+            current.slotCounts[newKey]=
+              Math.max(
+                0,
+                Number(current.slotCounts[newKey]||0)-1
+              );
+
+            current.updatedAt=serverTimestamp();
+
+            return current;
+          }
+        );
+
+        throw err;
+      }
+
+      if(oldSlot){
+
+        await allocatorRef.transaction(
+          current=>{
+
+            if(!current)
+              return current;
+
+            current.slotCounts=
+              current.slotCounts||{};
+
+            current.slotCounts[oldKey]=
+              Math.max(
+                0,
+                Number(current.slotCounts[oldKey]||0)-1
+              );
+
+            current.updatedAt=serverTimestamp();
+
+            return current;
+          }
+        );
+      }
 
       return;
     }
@@ -1340,7 +1478,7 @@
 
     if(
       allocator &&
-      Number(allocator.slotCountsVersion||0)>=3
+      Number(allocator.slotCountsVersion||0)>=4
     ){
       return;
     }
@@ -1360,7 +1498,7 @@
 
         if(
           patient.timeSlot &&
-          !['CANCELLED','SKIPPED'].includes(patient.status)
+          isActiveRegistration(patient)
         ){
           const key=slotKey(patient.timeSlot);
 
@@ -1387,7 +1525,7 @@
 
           if(
             current &&
-            Number(current.slotCountsVersion||0)>=3
+            Number(current.slotCountsVersion||0)>=4
           ){
             return;
           }
@@ -1407,7 +1545,7 @@
           };
 
           current.slotCounts=slotCounts;
-          current.slotCountsVersion=3;
+          current.slotCountsVersion=4;
           current.updatedAt=serverTimestamp();
 
           return current;
@@ -1444,7 +1582,7 @@
 
           slotCounts:{},
 
-          slotCountsVersion:3,
+          slotCountsVersion:4,
 
           updatedAt:
             serverTimestamp()
