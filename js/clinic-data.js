@@ -826,8 +826,6 @@
         status==='WAITING'
       ){
 
-        await reconcileSkippedSlotCounts();
-
         const patientSnap=
           await ref.once('value');
 
@@ -840,6 +838,11 @@
 
         const patient=
           patientSnap.val()||{};
+
+        const queueDate=
+          patient.queueDate||today();
+
+        await reconcileSlotCounts(queueDate);
 
         const wasCounted=
           !['CANCELLED','SKIPPED'].includes(patient.status);
@@ -854,7 +857,7 @@
 
           const allocatorRef=
             db()
-              .ref(`dailyQueues/${today()}`);
+              .ref(`dailyQueues/${queueDate}`);
 
           let slotFull=false;
 
@@ -1168,8 +1171,6 @@
 
     if(fbReady()){
 
-      await reconcileSkippedSlotCounts();
-
       const ref=
         db()
           .ref(`queueRecords/${id}`);
@@ -1187,6 +1188,11 @@
       const patient=
         snap.val()||{};
 
+      const queueDate=
+        patient.queueDate||today();
+
+      await reconcileSlotCounts(queueDate);
+
       const oldSlot=
         patient.timeSlot||'';
 
@@ -1199,7 +1205,7 @@
 
       const allocatorRef=
         db()
-          .ref(`dailyQueues/${today()}`);
+          .ref(`dailyQueues/${queueDate}`);
 
       const tx=
         await allocatorRef.transaction(
@@ -1321,37 +1327,46 @@
     emit();
   }
 
-  async function reconcileSkippedSlotCounts(){
+  async function reconcileSlotCounts(date=today()){
 
-    const date=today();
     const allocatorRef=
       db()
         .ref(`dailyQueues/${date}`);
 
-    const [allocatorSnap,recordsSnap]=
-      await Promise.all([
-        allocatorRef.once('value'),
-        db()
-          .ref('queueRecords')
-          .orderByChild('queueDate')
-          .equalTo(date)
-          .once('value')
-      ]);
+    const allocatorSnap=
+      await allocatorRef.once('value');
 
     const allocator=allocatorSnap.val();
 
     if(
-      !allocator ||
-      Number(allocator.slotCountsVersion||0)>=2
+      allocator &&
+      Number(allocator.slotCountsVersion||0)>=3
     ){
       return;
     }
 
-    const skippedCounts={};
+    const recordsSnap=
+      await db()
+        .ref('queueRecords')
+        .orderByChild('queueDate')
+        .equalTo(date)
+        .once('value');
+
+    const slotCounts={};
     const releasedUpdates={};
 
     Object.entries(recordsSnap.val()||{})
       .forEach(([id,patient])=>{
+
+        if(
+          patient.timeSlot &&
+          !['CANCELLED','SKIPPED'].includes(patient.status)
+        ){
+          const key=slotKey(patient.timeSlot);
+
+          slotCounts[key]=
+            (slotCounts[key]||0)+1;
+        }
 
         if(
           patient.status==='SKIPPED' &&
@@ -1359,9 +1374,6 @@
           patient.slotCapacityReleased!==true
         ){
           const key=slotKey(patient.timeSlot);
-
-          skippedCounts[key]=
-            (skippedCounts[key]||0)+1;
 
           releasedUpdates[
             `queueRecords/${id}/slotCapacityReleased`
@@ -1374,26 +1386,28 @@
         current=>{
 
           if(
-            !current ||
-            Number(current.slotCountsVersion||0)>=2
+            current &&
+            Number(current.slotCountsVersion||0)>=3
           ){
             return;
           }
 
-          current.slotCounts=
-            current.slotCounts||{};
+          current=current||{
+            date,
+            lastTokenNumber:
+              Number(state.lastTokenNumber||0),
+            totalRegistered:
+              state.queue.length,
+            completedCount:
+              state.queue.filter(
+                x=>x.status==='COMPLETED'
+              ).length,
+            currentServingId:null,
+            slotCounts:{}
+          };
 
-          Object.entries(skippedCounts)
-            .forEach(([key,count])=>{
-
-              current.slotCounts[key]=
-                Math.max(
-                  0,
-                  Number(current.slotCounts[key]||0)-count
-                );
-            });
-
-          current.slotCountsVersion=2;
+          current.slotCounts=slotCounts;
+          current.slotCountsVersion=3;
           current.updatedAt=serverTimestamp();
 
           return current;
@@ -1430,7 +1444,7 @@
 
           slotCounts:{},
 
-          slotCountsVersion:2,
+          slotCountsVersion:3,
 
           updatedAt:
             serverTimestamp()
