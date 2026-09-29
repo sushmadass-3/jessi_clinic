@@ -7,6 +7,20 @@
     "'":'&#39;'
   }[c]));
 
+  const icon=(name)=>({
+    home:'⌂',
+    dashboard:'⌂',
+    queue:'☷',
+    register:'＋',
+    qr:'▦',
+    doctor:'⚕',
+    more:'⋯',
+    check:'✓',
+    call:'☎',
+    back:'‹',
+    manage:'↔'
+  }[name]||'•');
+
   let el=null;
   let screen='login';
   let loginError='';
@@ -51,70 +65,33 @@
   }
 
   function nav(s){
-
-    if(
-      role() !== 'doctor' &&
-      (
-        s === 'doctorDashboard' ||
-        s === 'doctor'
-      )
-    ){
-      s='home';
-    }
-
     screen=s;
     loginError='';
     modal=null;
-
     render();
   }
 
   function header(s){
     return `
       <header class="app-header">
-
         <div class="brand">
-
-          <div class="brand-icon">
-            🏥
-          </div>
-
+          <div class="brand-icon">🏥</div>
           <div>
-
-            <strong>
-              ${esc(s.clinicName)}
-            </strong>
-
-            <span>
-              ${
-                role()==='doctor'
-                  ? 'Doctor View'
-                  : esc(s.userName)
-              }
-            </span>
-
+            <strong>${esc(s.clinicName)}</strong>
+            <span>${role()==='doctor'?'Doctor View':esc(s.userName)}</span>
           </div>
-
         </div>
 
-        <button
-          class="icon-btn"
-          onclick="StaffApp.nav('qr')"
-        >
-          ▦
-        </button>
-
+        <button class="icon-btn" onclick="StaffApp.nav('qr')">▦</button>
       </header>
     `;
   }
 
   function bottom(){
-
     const r=role();
     const active=x=>screen===x?'active':'';
 
     if(r==='doctor'){
-
       return `
         <nav class="bottom-nav">
 
@@ -194,17 +171,12 @@
   }
 
   function login(){
-
     return `
       <main class="login-screen">
 
-        <div class="login-logo">
-          🏥
-        </div>
+        <div class="login-logo">🏥</div>
 
-        <h1>
-          Jessi's Clinic
-        </h1>
+        <h1>Jessi's Clinic</h1>
 
         <p class="muted">
           Clinic Staff & Doctor App
@@ -258,7 +230,6 @@
   }
 
   function stats(){
-
     const x=ClinicData.getStats();
 
     return `
@@ -284,7 +255,6 @@
   }
 
   function home(s){
-
     const c=ClinicData.current();
     const w=ClinicData.waiting();
 
@@ -328,9 +298,7 @@
         ${stats()}
 
         <div class="section-title">
-          <h2>
-            Now Serving
-          </h2>
+          <h2>Now Serving</h2>
         </div>
 
         ${
@@ -365,17 +333,13 @@
 
         <div class="quick-grid">
 
-          <button
-            onclick="StaffApp.nav('register')"
-          >
+          <button onclick="StaffApp.nav('register')">
             ＋
             <b>Register Patient</b>
             <span>Walk-in</span>
           </button>
 
-          <button
-            onclick="StaffApp.nav('manage')"
-          >
+          <button onclick="StaffApp.nav('manage')">
             ↔
             <b>Cancel / Reschedule</b>
             <span>Manage today's patients</span>
@@ -388,7 +352,6 @@
   }
 
   function currentCard(p){
-
     return `
       <div class="current-card">
 
@@ -410,13 +373,11 @@
             ${esc(p.consultationType)}
             ·
             ${esc(p.patientType)}
-
             ${
               p.timeSlot
                 ? ` · ${esc(p.timeSlot)}`
                 : ''
             }
-
           </p>
 
         </div>
@@ -433,7 +394,6 @@
   }
 
   function queue(s){
-
     const q=s.queue||[];
 
     return `
@@ -468,7 +428,6 @@
           ${
             q.length
               ? q.map(patientCard).join('')
-
               : `
                 <div class="empty card">
 
@@ -516,19 +475,14 @@
             </b>
 
             <span>
-
               ${esc(p.consultationType)}
-
               ·
-
               ${esc(p.patientType||'')}
-
               ${
                 p.timeSlot
                   ? ` · ${esc(p.timeSlot)}`
                   : ''
               }
-
             </span>
 
           </div>
@@ -555,9 +509,7 @@
 
           ${
             p.status==='WAITING'
-
               ? `
-
                 <button
                   class="primary"
                   onclick="StaffApp.sendWhatsApp('${p.id}')"
@@ -566,48 +518,45 @@
                 </button>
 
                 <button
+                  class="primary"
+                  onclick="StaffApp.consult('${p.id}')"
+                >
+                  👨‍⚕️ Consult
+                </button>
+
+                <button
                   class="secondary"
                   onclick="StaffApp.skip('${p.id}')"
                 >
                   Skip
                 </button>
-
               `
-
               : ''
           }
 
           ${
             p.status==='IN_CONSULTATION'
-
               ? `
-
                 <button
                   class="primary"
                   onclick="StaffApp.complete('${p.id}')"
                 >
                   ✓ Complete
                 </button>
-
               `
-
               : ''
           }
 
           ${
             p.status==='SKIPPED'
-
               ? `
-
                 <button
                   class="secondary"
                   onclick="StaffApp.requeue('${p.id}')"
                 >
                   ↻ Re-queue
                 </button>
-
               `
-
               : ''
           }
 
@@ -626,6 +575,7 @@
         </option>
       `)
       .join('');
+
   }
 
   function register(){
@@ -656,6 +606,7 @@
         >
 
           <label>
+
             Patient Name
 
             <input
@@ -663,9 +614,11 @@
               required
               placeholder="e.g. Priya Sharma"
             >
+
           </label>
 
           <label>
+
             Age
 
             <input
@@ -678,37 +631,11 @@
               placeholder="Enter age"
               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
             >
-          </label>
-
-          <label>
-            Gender
-
-            <select
-              id="regGender"
-              required
-            >
-
-              <option value="">
-                Select Gender
-              </option>
-
-              <option value="Male">
-                Male
-              </option>
-
-              <option value="Female">
-                Female
-              </option>
-
-              <option value="Other">
-                Other
-              </option>
-
-            </select>
 
           </label>
 
           <label>
+
             Mobile Number
 
             <input
@@ -719,7 +646,10 @@
               pattern="[0-9]{10}"
               placeholder="10-digit mobile number"
             >
+
           </label>
+
+          <!-- PATIENT TYPE -->
 
           <fieldset>
 
@@ -727,94 +657,56 @@
               Patient Type
             </legend>
 
-            <style>
-
-              .patient-type-options {
-                display:grid;
-                grid-template-columns:1fr 1fr;
-                gap:12px;
-              }
-
-              .patient-type-option {
-                position:relative;
+            <div
+              class="choices"
+              style="
                 display:flex;
+                gap:24px;
                 align-items:center;
-                justify-content:center;
-                gap:8px;
-                min-height:58px;
-                padding:0 14px;
-                border:1px solid #dce8ea;
-                border-radius:16px;
-                background:#f8fbfb;
-                cursor:pointer;
-                font-weight:700;
-                color:#31515b;
-                box-sizing:border-box;
-              }
+              "
+            >
 
-              .patient-type-option input {
-                position:absolute;
-                opacity:0;
-                pointer-events:none;
-              }
-
-              .patient-type-option:has(input:checked) {
-                border-color:#62c3c6;
-                background:#e8f7f7;
-                color:#087b83;
-              }
-
-              .patient-type-plus {
-                font-size:22px;
-                font-weight:800;
-                line-height:1;
-              }
-
-              @media (max-width:380px) {
-
-                .patient-type-options {
-                  grid-template-columns:1fr;
-                }
-
-              }
-
-            </style>
-
-            <div class="patient-type-options">
-
-              <label class="patient-type-option">
+              <label
+                style="
+                  display:flex;
+                  align-items:center;
+                  gap:0;
+                  cursor:pointer;
+                "
+              >
 
                 <input
                   type="radio"
                   name="ptype"
                   value="New Patient"
                   checked
+                  style="display:none;"
                 >
 
-                <span class="patient-type-plus">
-                  +
-                </span>
-
                 <span>
-                  New Patient
+                  + New Patient
                 </span>
 
               </label>
 
-              <label class="patient-type-option">
+              <label
+                style="
+                  display:flex;
+                  align-items:center;
+                  gap:0;
+                  cursor:pointer;
+                "
+              >
 
                 <input
                   type="radio"
                   name="ptype"
                   value="Follow Up"
+                  style="display:none;"
                 >
 
-                <span class="patient-type-plus">
-                  +
-                </span>
-
                 <span>
-                  Follow Up
+                  + Follow Up
                 </span>
 
               </label>
@@ -824,6 +716,7 @@
           </fieldset>
 
           <label>
+
             Consultation Type
 
             <select id="regConsult">
@@ -849,6 +742,7 @@
           </label>
 
           <label>
+
             Time Slot
 
             <select
@@ -867,9 +761,11 @@
           </label>
 
           <p class="slot-note">
+
             Doctor available:
             10:00 AM–1:00 PM and
             5:00 PM–10:00 PM.
+
           </p>
 
           <button class="primary wide">
@@ -900,8 +796,7 @@
 
     }catch(e){
 
-      svg=
-        '<div class="qr-fallback">QR unavailable</div>';
+      svg='<div class="qr-fallback">QR unavailable</div>';
 
     }
 
@@ -1021,26 +916,21 @@
                         ${esc(p.consultationType)}
                         ·
                         ${esc(p.patientType||'')}
-
                         ${
                           p.timeSlot
                             ? ` · ${esc(p.timeSlot)}`
                             : ''
                         }
-
                       </span>
 
                     </div>
 
                     <span
-                      class="
-                        pill
-                        ${
-                          p.status
-                            .toLowerCase()
-                            .replace('_','-')
-                        }
-                      "
+                      class="pill ${
+                        p.status
+                          .toLowerCase()
+                          .replace('_','-')
+                      }"
                     >
                       ${p.status.replace('_',' ')}
                     </span>
@@ -1127,6 +1017,7 @@
       screen='manage';
 
       return manage(s);
+
     }
 
     const slots=ClinicData.getTimeSlots();
@@ -1248,9 +1139,11 @@
         <section class="dashboard-section">
 
           <div class="dashboard-section-head">
+
             <h2>
               A. Patient volume
             </h2>
+
           </div>
 
           <div class="metric-grid four">
@@ -1307,6 +1200,11 @@
             )}
 
           </div>
+
+          <p class="dashboard-note">
+            Age is shown when it is available
+            in a patient record.
+          </p>
 
         </section>
 
@@ -1392,9 +1290,11 @@
 
         ${
           c
+
             ? currentCard(c)
 
             : `
+
               <div class="empty card">
 
                 <div class="empty-icon">
@@ -1413,7 +1313,16 @@
                   }
                 </p>
 
+                <button
+                  class="primary"
+                  ${!w.length?'disabled':''}
+                  onclick="StaffApp.callNext()"
+                >
+                  ☎ Call Next Patient
+                </button>
+
               </div>
+
             `
         }
 
@@ -1447,9 +1356,11 @@
 
         ${
           c
+
             ? currentCard(c)
 
             : `
+
               <div class="empty card">
 
                 <div class="empty-icon">
@@ -1468,7 +1379,16 @@
                   }
                 </p>
 
+                <button
+                  class="primary"
+                  ${!w.length?'disabled':''}
+                  onclick="StaffApp.callNext()"
+                >
+                  ☎ Call Next Patient
+                </button>
+
               </div>
+
             `
         }
 
@@ -1486,9 +1406,7 @@
             w.slice(0,4)
               .map(patientCard)
               .join('')
-
               ||
-
               '<div class="card empty"><p>No waiting patients.</p></div>'
           }
 
@@ -1497,6 +1415,12 @@
       </main>
     `;
   }
+
+  /*
+   * IMPORTANT:
+   * There is NO Staff / Doctor switch anymore.
+   * The interface is determined by the Firebase user's role.
+   */
 
   function more(s){
 
@@ -1628,51 +1552,68 @@
 
     const s=ClinicData.getState();
 
-    if(
-      s.role !== 'doctor' &&
-      (
-        screen === 'doctorDashboard' ||
-        screen === 'doctor'
-      )
-    ){
-      screen='home';
-    }
-
     if(screen==='login'){
 
       el.innerHTML=login();
 
       return;
+
     }
 
     let body;
 
     if(screen==='home'){
+
       body=home(s);
+
     }
+
     else if(screen==='doctorDashboard'){
+
       body=doctorDashboard(s);
+
     }
+
     else if(screen==='queue'){
+
       body=queue(s);
+
     }
+
     else if(screen==='register'){
+
       body=register();
+
     }
+
     else if(screen==='qr'){
+
       body=qr();
+
     }
+
     else if(screen==='manage'){
+
       body=manage(s);
+
     }
+
     else if(screen==='reschedule'){
+
       body=rescheduleScreen(s);
+
     }
+
     else if(screen==='doctor'){
+
       body=doctor(s);
+
     }
+
     else{
+
       body=more(s);
+
     }
 
     el.innerHTML=`
@@ -1687,6 +1628,7 @@
 
       ${
         modal
+
           ? `
 
             <div class="modal-backdrop">
@@ -1718,7 +1660,9 @@
             </div>
 
           `
+
           : ''
+
       }
 
     `;
@@ -1739,9 +1683,17 @@
       try{
 
         const u=await ClinicData.login(
+
           document.getElementById('loginEmail').value,
+
           document.getElementById('loginPassword').value
+
         );
+
+        /*
+         * Firebase user role determines interface.
+         * No manual role selection is allowed.
+         */
 
         screen=u.role==='doctor'
           ? 'doctorDashboard'
@@ -1756,7 +1708,9 @@
           'Unable to sign in.';
 
         render();
+
       }
+
     },
 
     logout:async()=>{
@@ -1766,6 +1720,7 @@
       screen='login';
 
       render();
+
     },
 
     register:async e=>{
@@ -1784,9 +1739,6 @@
 
           mobileNumber:
             document.getElementById('regMobile').value,
-
-          gender:
-            document.getElementById('regGender').value,
 
           patientType:
             document.querySelector(
@@ -1812,6 +1764,37 @@
         alert(err.message);
 
       }
+
+    },
+
+    call:async id=>{
+
+      await ClinicData.call(id);
+
+      render();
+
+    },
+
+    callNext:async()=>{
+
+      const p=ClinicData.waiting()[0];
+
+      if(p){
+
+        await ClinicData.call(p.id);
+
+      }
+
+      render();
+
+    },
+
+    consult:async id=>{
+
+      await ClinicData.call(id);
+
+      render();
+
     },
 
     sendWhatsApp:id=>{
@@ -1821,12 +1804,16 @@
 
       if(!patient){
 
-        alert(
-          'Patient record not found.'
-        );
+        alert('Patient not found.');
 
         return;
+
       }
+
+      const message=
+        `Hello ${patient.patientName}, this is Jessi's Clinic. ` +
+        `Your token number is #${patient.tokenNumber}. ` +
+        `Please be ready for your consultation.`;
 
       const rawMobile=
         String(patient.mobileNumber||'')
@@ -1839,45 +1826,22 @@
         );
 
         return;
+
       }
 
-      const mobile=
-        '91'+rawMobile;
-
-      /*
-       * EXACT WhatsApp message requested:
-       *
-       * Hello Priya, this is Jessi's Clinic.
-       * Your token number is #12.
-       * Please be ready for your consultation.
-       */
-
-      const message=
-        `Hello ${patient.patientName}, this is Jessi's Clinic. ` +
-        `Your token number is #${patient.tokenNumber}. ` +
-        `Please be ready for your consultation.`;
+      const mobile='91'+rawMobile;
 
       const whatsappUrl=
-        'https://wa.me/' +
-        mobile +
-        '?text=' +
+        'https://wa.me/'+
+        mobile+
+        '?text='+
         encodeURIComponent(message);
 
       window.open(
         whatsappUrl,
         '_blank'
       );
-    },
 
-    callNext:async()=>{
-
-      const p=ClinicData.waiting()[0];
-
-      if(p){
-        await ClinicData.call(p.id);
-      }
-
-      render();
     },
 
     complete:async id=>{
@@ -1885,20 +1849,19 @@
       await ClinicData.complete(id);
 
       render();
+
     },
 
     skip:async id=>{
 
-      if(
-        confirm(
-          'Skip this patient?'
-        )
-      ){
+      if(confirm('Skip this patient?')){
 
         await ClinicData.skip(id);
 
         render();
+
       }
+
     },
 
     requeue:async id=>{
@@ -1906,20 +1869,30 @@
       await ClinicData.requeue(id);
 
       render();
+
     },
+
+    /*
+     * setRole has intentionally been removed.
+     *
+     * A user cannot switch between Staff and Doctor
+     * from the application anymore.
+     *
+     * Role comes only from Firebase users/{uid}/role.
+     */
 
     cancel:async id=>{
 
-      if(
-        confirm(
-          'Cancel this patient registration?'
-        )
-      ){
+      if(confirm(
+        'Cancel this patient registration?'
+      )){
 
         await ClinicData.cancel(id);
 
         render();
+
       }
+
     },
 
     reschedule:id=>{
@@ -1929,6 +1902,7 @@
       screen='reschedule';
 
       render();
+
     },
 
     confirmReschedule:async(id,slot)=>{
@@ -1949,21 +1923,23 @@
       }catch(err){
 
         alert(err.message);
+
       }
+
     },
 
     reset:async()=>{
 
-      if(
-        confirm(
-          "Reset today's queue?"
-        )
-      ){
+      if(confirm(
+        "Reset today's queue?"
+      )){
 
         await ClinicData.resetDay();
 
         render();
+
       }
+
     },
 
     closeModal:()=>{
@@ -1973,6 +1949,7 @@
       screen='queue';
 
       render();
+
     }
 
   };
