@@ -100,6 +100,16 @@
             >
           </label>
 
+          <label>
+            Gender
+            <select id="pGender" required>
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
           <fieldset>
             <legend>Patient Type</legend>
 
@@ -301,6 +311,7 @@
         const nameEl = document.getElementById('pName');
         const ageEl = document.getElementById('pAge');
         const mobileEl = document.getElementById('pMobile');
+        const genderEl = document.getElementById('pGender');
         const typeEl = document.querySelector(
           'input[name=pType]:checked'
         );
@@ -314,6 +325,8 @@
           age: ageEl.value.trim(),
 
           mobileNumber: mobileEl.value.trim(),
+
+          gender: genderEl.value,
 
           patientType: typeEl
             ? typeEl.value

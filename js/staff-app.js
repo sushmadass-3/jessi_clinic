@@ -649,6 +649,32 @@
 
           </label>
 
+          <label>
+
+            Gender
+
+            <select id="regGender" required>
+
+              <option value="">
+                Select gender
+              </option>
+
+              <option value="Male">
+                Male
+              </option>
+
+              <option value="Female">
+                Female
+              </option>
+
+              <option value="Other">
+                Other
+              </option>
+
+            </select>
+
+          </label>
+
           <!-- PATIENT TYPE -->
 
           <fieldset>
@@ -1739,6 +1765,9 @@
 
           mobileNumber:
             document.getElementById('regMobile').value,
+
+          gender:
+            document.getElementById('regGender').value,
 
           patientType:
             document.querySelector(
