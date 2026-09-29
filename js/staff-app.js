@@ -1895,7 +1895,16 @@
 
     requeue:async id=>{
 
-      await ClinicData.requeue(id);
+      try{
+
+        await ClinicData.requeue(id);
+
+      }catch(err){
+
+        alert(err.message);
+
+        return;
+      }
 
       render();
 

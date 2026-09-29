@@ -821,6 +821,93 @@
         db()
           .ref(`queueRecords/${id}`);
 
+      if(
+        status==='SKIPPED' ||
+        status==='WAITING'
+      ){
+
+        await reconcileSkippedSlotCounts();
+
+        const patientSnap=
+          await ref.once('value');
+
+        if(!patientSnap.exists()){
+
+          throw new Error(
+            'Patient registration not found.'
+          );
+        }
+
+        const patient=
+          patientSnap.val()||{};
+
+        const wasCounted=
+          !['CANCELLED','SKIPPED'].includes(patient.status);
+
+        const willCount=
+          !['CANCELLED','SKIPPED'].includes(status);
+
+        if(
+          patient.timeSlot &&
+          wasCounted!==willCount
+        ){
+
+          const allocatorRef=
+            db()
+              .ref(`dailyQueues/${today()}`);
+
+          let slotFull=false;
+
+          const tx=
+            await allocatorRef.transaction(
+              current=>{
+
+                if(!current)
+                  return;
+
+                current.slotCounts=
+                  current.slotCounts||{};
+
+                const key=
+                  slotKey(patient.timeSlot);
+
+                const count=
+                  Number(
+                    current.slotCounts[key]||0
+                  );
+
+                if(
+                  willCount &&
+                  count>=SLOT_CAPACITY
+                ){
+
+                  slotFull=true;
+                  return;
+                }
+
+                current.slotCounts[key]=
+                  willCount
+                    ? count+1
+                    : Math.max(0,count-1);
+
+                current.updatedAt=
+                  serverTimestamp();
+
+                return current;
+              }
+            );
+
+          if(!tx.committed){
+
+            throw new Error(
+              slotFull
+                ? `${patient.timeSlot} is full. Please select another time slot.`
+                : 'Unable to update the slot capacity. Please try again.'
+            );
+          }
+        }
+      }
+
       if(status==='IN_CONSULTATION'){
 
         const snap=
@@ -902,6 +989,13 @@
 
           updates.requeuedAt=
             serverTimestamp();
+
+          updates.slotCapacityReleased=false;
+        }
+
+        if(status==='SKIPPED'){
+
+          updates.slotCapacityReleased=true;
         }
 
         await ref.update(updates);
@@ -1074,6 +1168,8 @@
 
     if(fbReady()){
 
+      await reconcileSkippedSlotCounts();
+
       const ref=
         db()
           .ref(`queueRecords/${id}`);
@@ -1225,6 +1321,95 @@
     emit();
   }
 
+  async function reconcileSkippedSlotCounts(){
+
+    const date=today();
+    const allocatorRef=
+      db()
+        .ref(`dailyQueues/${date}`);
+
+    const [allocatorSnap,recordsSnap]=
+      await Promise.all([
+        allocatorRef.once('value'),
+        db()
+          .ref('queueRecords')
+          .orderByChild('queueDate')
+          .equalTo(date)
+          .once('value')
+      ]);
+
+    const allocator=allocatorSnap.val();
+
+    if(
+      !allocator ||
+      Number(allocator.slotCountsVersion||0)>=2
+    ){
+      return;
+    }
+
+    const skippedCounts={};
+    const releasedUpdates={};
+
+    Object.entries(recordsSnap.val()||{})
+      .forEach(([id,patient])=>{
+
+        if(
+          patient.status==='SKIPPED' &&
+          patient.timeSlot &&
+          patient.slotCapacityReleased!==true
+        ){
+          const key=slotKey(patient.timeSlot);
+
+          skippedCounts[key]=
+            (skippedCounts[key]||0)+1;
+
+          releasedUpdates[
+            `queueRecords/${id}/slotCapacityReleased`
+          ]=true;
+        }
+      });
+
+    const tx=
+      await allocatorRef.transaction(
+        current=>{
+
+          if(
+            !current ||
+            Number(current.slotCountsVersion||0)>=2
+          ){
+            return;
+          }
+
+          current.slotCounts=
+            current.slotCounts||{};
+
+          Object.entries(skippedCounts)
+            .forEach(([key,count])=>{
+
+              current.slotCounts[key]=
+                Math.max(
+                  0,
+                  Number(current.slotCounts[key]||0)-count
+                );
+            });
+
+          current.slotCountsVersion=2;
+          current.updatedAt=serverTimestamp();
+
+          return current;
+        }
+      );
+
+    if(
+      tx.committed &&
+      Object.keys(releasedUpdates).length
+    ){
+      await db()
+        .ref()
+        .update(releasedUpdates);
+    }
+  }
+
   async function resetDay(){
 
     if(fbReady()){
@@ -1244,6 +1429,8 @@
           currentServingId:null,
 
           slotCounts:{},
+
+          slotCountsVersion:2,
 
           updatedAt:
             serverTimestamp()
